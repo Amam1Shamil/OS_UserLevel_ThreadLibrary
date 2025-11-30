@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thread Library Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #121212; --card-bg: #1e1e1e; --accent: #bb86fc;
+            --text: #e0e0e0; --green: #03dac6; --yellow: #ffb74d; --red: #cf6679;
+        }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        h1 { margin: 0; color: var(--accent); }
+        
+        button {
+            background: var(--accent); color: #000; border: none; padding: 10px 20px;
+            font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.2s;
+        }
+        button:hover { opacity: 0.8; }
+
+        .container { display: flex; gap: 20px; height: 100%; }
+        
+        /* Thread Grid */
+        #visualization { flex: 2; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; align-content: start; overflow-y: auto; }
+        
+        .card { background: var(--card-bg); padding: 15px; border-radius: 8px; border-top: 4px solid #555; transition: all 0.3s; }
+        .card-header { font-family: 'Roboto Mono', monospace; font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
+        .card-status { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+        .card-detail { font-size: 0.8rem; color: #888; margin-top: 5px; }
+
+        /* States */
+        .RUNNING { border-color: var(--green); box-shadow: 0 0 10px rgba(3, 218, 198, 0.2); }
+        .RUNNING .card-status { color: var(--green); }
+        
+        .READY { border-color: var(--yellow); }
+        .READY .card-status { color: var(--yellow); }
+        
+        .FINISHED { border-color: #555; opacity: 0.5; }
+        .FINISHED .card-status { color: #888; }
+
+        /* Console */
+        #console { flex: 1; background: #000; border-radius: 8px; padding: 15px; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; overflow-y: auto; color: #aaa; border: 1px solid #333; }
+        .log-line { margin-bottom: 4px; border-bottom: 1px solid #111; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>OS Project Visualizer</h1>
+            <small>User Level Thread Library</small>
+        </div>
+        <button onclick="startSimulation()">▶ Run Execution</button>
+    </header>
+
+    <div class="container">
+        <div id="visualization"></div>
+        <div id="console"><div class="log-line">Waiting for command...</div></div>
+    </div>
+
+    <script>
+        const socket = io();
+        const grid = document.getElementById('visualization');
+        const consoleDiv = document.getElementById('console');
+
+        function startSimulation() {
+            grid.innerHTML = "";
+            consoleDiv.innerHTML = '<div class="log-line">Starting...</div>';
+            socket.emit('start_simulation');
+        }
+
+        socket.on('console_log', data => {
+            const d = document.createElement('div');
+            d.className = 'log-line';
+            d.innerText = "> " + data.data;
+            consoleDiv.appendChild(d);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        });
+
+        socket.on('thread_update', data => {
+            let card = document.getElementById(`thread-${data.id}`);
+            
+            // Create if new
+            if (!card) {
+                card = document.createElement('div');
+                card.id = `thread-${data.id}`;
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">THREAD ${data.id}</div>
+                    <div class="card-status" id="status-${data.id}">...</div>
+                    <div class="card-detail" id="detail-${data.id}">Initializing</div>
+                `;
+                grid.appendChild(card);
+            }
+
+            // Update
+            card.className = `card ${data.state}`;
+            document.getElementById(`status-${data.id}`).innerText = data.state;
+            document.getElementById(`detail-${data.id}`).innerText = data.details;
+        });
+    </script>
+</body>
+</html>
